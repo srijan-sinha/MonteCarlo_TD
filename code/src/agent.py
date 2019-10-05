@@ -158,7 +158,20 @@ class Agent:
 				else:
 					self.policy[s1] = other_action1
 
-	def play_episode (self, policy_25=False, control=False, online=False, td_lambda=False, decay=False, k=1, episodes=1, alpha=0.1, reward_av=10000):
+	def test_episode(self, episodes=100):
+		av_reward = 0.0
+		for i in xrange(episodes):
+			curr_state = self.wrap.start_game()
+			EoE =False
+			curr_state, reward, EoE = self.wrap.next_state_reward(curr_state, "DEAL")
+			while(not EoE):
+				curr_state, reward, EoE = self.wrap.next_state_reward(curr_state, self.policy[curr_state])
+			av_reward += reward
+		av_reward /= episodes
+		return av_reward
+
+
+	def play_episode (self, policy_25=False, control=False, online=False, td_lambda=False, decay=False, k=1, episodes=1, alpha=0.1, reward_av_num=10000):
 		if (not control):
 			episode = []
 			next_state = self.wrap.start_game()
@@ -168,16 +181,18 @@ class Agent:
 				if (policy_25):
 					curr_action = self.policy_25(curr_state)
 				else:
-					# print curr_state
+					print curr_state
 					curr_action = self.policy[curr_state]
 				next_state, reward, EoE = self.wrap.next_state_reward(curr_state,curr_action)
 				episode.append((curr_state, curr_action, reward))
 			# episode.append((curr_state, "STOP", 0))
 			return episode
 		else:
+			rew = []
 			if (not td_lambda):
 				epsilon = 0.1
 				updates = 1
+				av_reward = 0.0
 				for i in xrange(episodes):
 					episode = []
 					curr_state = self.wrap.start_game()
@@ -202,12 +217,16 @@ class Agent:
 						if (decay):
 							updates += 1
 					self.update_policy_full(episode, online=online, k=k, alpha=alpha)
+					av_reward += reward
+					if (i%reward_av_num == 0):
+						rew.append(av_reward / reward_av_num)
+						av_reward = 0.0
 					# print "Episode:"
 					# print_episode(episode)
 					# print ":Episode done."
 					# print "///////////////////////////////////////////////////////////////////////////////////////////////"
 					# print
-				return
+				return rew
 			else:
 				epsilon = 0.1
 				updates = 1
@@ -266,6 +285,7 @@ def print_episode (episode):
 		print str(i[0]) + " | " + i[1] + " ----------- " + str(i[2])
 
 def print_episode_element (item):
+	
 	print str(item[0]) + " | " + item[1] + " ----------- " + str(item[2])
 
 def print_dict (d):
@@ -279,6 +299,7 @@ def average_runs (agent_master, agent):
 		agent_master.qsa_map[i] = ((elem[0]*elem[1] + agent.qsa_map[i][0]) / (elem[1] + 1), elem[1]+1)
 		# print elem[0], " ", agent.qsa_map[i][0], " ", agent_master.qsa_map[i][0]
 		# break
+
 def plot_qsa (agent):
 	fig = plt.figure()
 	for j in [0, 1, 2]:
@@ -299,6 +320,17 @@ def plot_qsa (agent):
 		elif (j == 2):
 			ax.set_title("Hand value - Special card (Used at higher value)")
 	plt.show()
+
+def plot_avg_reward(ax, reward_avg, interval=1000):
+	y = np.array(reward_avg)
+	n = len(reward_avg)
+	print n
+	x = []
+	for i in xrange(n):
+		x.append(interval*i)
+	x = np.array(x)
+	ax.plot(x, y)
+	
 
 ############################################### M O N T E   C A R L O ###########################################
 def monte_carlo_eval (agent, episode, first_visit=True):
@@ -334,7 +366,7 @@ def monte_carlo_eval (agent, episode, first_visit=True):
 
 # agent = Agent()
 # agent.init_qsa()
-# EPISODES = 10000000
+# EPISODES = 100000
 # for ep in xrange(EPISODES):
 # 	episode = agent.play_episode(policy_25=True, control=False, online=False)
 # 	monte_carlo_eval (agent, episode, False)
@@ -364,59 +396,70 @@ def td_eval (agent, episode, n):
 		tup = agent.qsa_map[(state, action)]
 		agent.qsa_map[(state, action)] = (tup[0] + alpha * (_return - tup[0]), tup[1] + 1)
 
-# for k in [1, 3, 5, 10, 100, 1000]:
-for k in [1000]:
-	agent_master = Agent()
-	agent_master.init_qsa()
-	for i in xrange(100):
-		print "Agent: ", i
-		agent = Agent()
-		agent.init_qsa()
-		EPISODES = 100000
-		for ep in xrange(EPISODES):
-			episode = agent.play_episode(policy_25=True, control=False, online=False)
-			# print_episode(episode)
-			td_eval (agent, episode, k)
-		print "Averaging Runs"
-		average_runs(agent_master, agent)
-		# print_qsa(agent)
-		# plot_qsa(agent)
-	# print_qsa(agent_master)
-	plot_qsa(agent_master)
+# for k in [1, 3, 5, 10, 20, 100, 1000]:
+# for k in [20]:
+# 	agent_master = Agent()
+# 	agent_master.init_qsa()
+# 	for i in xrange(100):
+# 		agent = Agent()
+# 		agent.init_qsa()
+# 		EPISODES = 100000
+# 		for ep in xrange(EPISODES):
+# 			episode = agent.play_episode(policy_25=True, control=False, online=False)
+# 			td_eval (agent, episode, k)
+# 		average_runs(agent_master, agent)
+# 	plot_qsa(agent_master)
 	
 
 ############################################# S A R S A and R E S T #############################################
-# for k in [1, 10, 100, 1000]
 
 
-
-
-# for k in [1]:
+# k_arr = [1, 10, 100, 1000]
+# fig = plt.figure()
+# # fig.suptitle("TD(K) Online No Decay")
+# # fig.suptitle("TD(K) Online Decay")
+# fig.suptitle("Q Learning")
+# for i in xrange(1):
+# 	s = "11"
+# 	s += str(i+1)
+# 	ax = fig.add_subplot(int(s))
 # 	agent = Agent()
-# 	EPISODES = 1000000
+# 	EPISODES = 10000
 # 	agent.init_qsa()
 # 	agent.init_policy()
-# 	# print agent.policy[State(-1, -1, -1)]
-# 	print_policy(agent)
-# 	print "#####################################################################################################################################################################"
-# 	agent.play_episode(policy_25=False, control=True, online=True, td_lambda=True, episodes=EPISODES, decay=False, k=1)
-
-# print "#####################################################################################################################################################################"
-# print_policy(agent)
-# print_qsa(agent)
+# 	reward_interval = 1000
+# 	reward_avg = agent.play_episode(policy_25=False, control=True, online=False, td_lambda=False, episodes=EPISODES, decay=True, k=k_arr[i], reward_av_num=reward_interval)
+# 	print reward_avg
+# 	plot_avg_reward(ax, reward_avg, interval=reward_interval)
+# 	# ax.set_title("k = " + str(k_arr[i]))
+# plt.show()
 
 
 
-print
-print "****************************************************************************************************************************************************************"
-print "****************************************************************************************************************************************************************"
-print "****************************************************************************************************************************************************************"
-print "****************************************************************************************************************************************************************"
-print
-# for k in [1]:
-# 	EPISODES = 1000
-# 	# agent.init_qsa()
-# 	for ep in xrange(EPISODES):
-# 		episode = agent.play_episode(policy_25=False, control=False, online=False)
-# 		td_eval (agent, episode, k)
-	# print_qsa(agent)
+alpha_arr = [0.1, 0.2, 0.3, 0.4]
+# plt.title("Variation of test reward with alpha TD(2)")
+reward_arr = []
+for i in xrange(1):
+	s = "22"
+	s += str(i+1)
+	agent = Agent()
+	EPISODES = 1000000
+	agent.init_qsa()
+	agent.init_policy()
+	reward_interval = 10000
+	agent.play_episode(policy_25=False, control=True, online=True, td_lambda=False, episodes=EPISODES, decay=False, alpha=alpha_arr[i], k=2, reward_av_num=reward_interval)
+	# reward_avg = agent.test_episode(episodes=10000)
+	# reward_arr.append(reward_avg)
+# plt.plot(alpha_arr, reward_arr)
+# plt.show()
+
+
+# agent = Agent()
+agent.init_qsa()
+EPISODES = 1000000
+agent.policy[State(-1, -1, -1)] = "DEAL"
+for ep in xrange(EPISODES):
+	episode = agent.play_episode(policy_25=False, control=False, online=False)
+	monte_carlo_eval (agent, episode, False)
+print_qsa(agent)
+plot_qsa(agent)
