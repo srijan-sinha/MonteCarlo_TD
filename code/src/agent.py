@@ -64,6 +64,39 @@ class Agent:
 					# 	self.policy[State(i, j, k)] = "HIT"
 		# self.policy[State(31, 2, 3)] = "STICK"
 
+	# def lambda_update (self, episode, online=True, alpha=0.1, la=0.5):
+
+	# 	if (len(episode) != 0):
+	# 		reward = episode[len(episode)-1][2]
+	# 		cum_la = 0.0
+	# 		la_temp = 1 - la
+
+	# 		state_values = 0.0
+	# 		for i in xrange(1, len(episode)):
+	# 			cum_la += la_temp
+	# 			item = episode[i]
+	# 			state_values += la_temp * self.qsa_map[(item[0], item[1])][0]
+	# 			la_temp *= la
+	# 		print "Cum la: ", cum_la
+	# 		for i in xrange(len(episode)):
+	# 			item = episode[i]
+	# 			target = state_values + (1 - cum_la)*reward
+	# 			state_values -= (1 - la) * self.qsa_map[(item[0], item[1])][0]
+	# 			state_values /= la
+	# 			cum_la -= (1 - la)
+	# 			cum_la /= la
+	# 			tup = self.qsa_map[(item[0], item[1])]
+	# 			print item[0], " ", target
+	# 			self.qsa_map[(item[0], item[1])] = (tup[0] + alpha*(target - tup[0]), tup[1] + 1)
+	# 			print "Updated q_s_a: ", self.qsa_map[(item[0], item[1])]
+	# 			other_action = "HIT"
+	# 			if (item[1] == "HIT"):
+	# 				other_action = "STICK"
+	# 			if (self.qsa_map[(item[0], item[1])][0] > self.qsa_map[(item[0], other_action)][0]):
+	# 				self.policy[item[0]] = item[1]
+	# 			else:
+	# 				self.policy[item[0]] = other_action
+
 	def lambda_update (self, episode, online=True, alpha=0.1, la=0.5):
 
 		if (len(episode) != 0):
@@ -99,7 +132,9 @@ class Agent:
 				tup = self.qsa_map[(item[0], item[1])]
 				# if (item[0] == State (31, 2, 3) and item[1] == "STICK"):
 					# print max_target, " ", tup[0], " ", item[2]
+				# print item[0], " ", max_target
 				self.qsa_map[(item[0], item[1])] = (tup[0] + alpha*(max_target - tup[0]), tup[1] + 1)
+				# print "Updated q_s_a: ", self.qsa_map[(item[0], item[1])]
 				other_action = "HIT"
 				if (item[1] == "HIT"):
 					other_action = "STICK"
@@ -181,7 +216,7 @@ class Agent:
 				if (policy_25):
 					curr_action = self.policy_25(curr_state)
 				else:
-					print curr_state
+					# print curr_state
 					curr_action = self.policy[curr_state]
 				next_state, reward, EoE = self.wrap.next_state_reward(curr_state,curr_action)
 				episode.append((curr_state, curr_action, reward))
@@ -199,7 +234,6 @@ class Agent:
 					curr_action = self.greedy_policy(curr_state)
 					EoE = False
 					next_state, reward, EoE = self.wrap.next_state_reward(curr_state, curr_action)
-					# print next_state, " ", reward, " ", EoE
 					epsilon_i = epsilon/updates
 					if (not EoE):
 						next_action = self.greedy_policy(next_state, epsilon=epsilon_i)
@@ -221,22 +255,17 @@ class Agent:
 					if (i%reward_av_num == 0):
 						rew.append(av_reward / reward_av_num)
 						av_reward = 0.0
-					# print "Episode:"
-					# print_episode(episode)
-					# print ":Episode done."
-					# print "///////////////////////////////////////////////////////////////////////////////////////////////"
-					# print
 				return rew
 			else:
 				epsilon = 0.1
 				updates = 1
+				av_reward = 0.0
 				for i in xrange(episodes):
 					episode = []
 					curr_state = self.wrap.start_game()
 					curr_action = self.greedy_policy(curr_state)
 					EoE = False
 					next_state, reward, EoE = self.wrap.next_state_reward(curr_state, curr_action)
-					# print next_state, " ", reward, " ", EoE
 					epsilon_i = epsilon/updates
 					if (not EoE):
 						next_action = self.greedy_policy(next_state, epsilon=epsilon_i)
@@ -251,13 +280,15 @@ class Agent:
 						episode_length += 1
 						if (decay):
 							updates += 1
-					self.lambda_update(episode, online=True, alpha=alpha, la=0.5)
-					# print "Episode:"
+					# episode_hard = [(State(2,0,2),"HIT",0), (State(11,0,2),"HIT",0), (State(18,0,2),"HIT",0),(State(26,0,2),"STICK",100)]
+					# episode = episode_hard
 					# print_episode(episode)
-					# print ":Episode done."
-					# print "///////////////////////////////////////////////////////////////////////////////////////////////"
-					# print
-				return
+					self.lambda_update(episode, online=True, alpha=alpha, la=0.5)
+					av_reward += reward
+					if (i%reward_av_num == 0):
+						rew.append(av_reward / reward_av_num)
+						av_reward = 0.0
+				return rew
 
 
  
@@ -268,6 +299,7 @@ def print_qsa (agent):
 				for k in xrange(1, 11):
 					if (State(i, j, k), action) in agent.qsa_map:
 						print str(i) + " | " + str(j) + " | " + str(k) + " | " + action + "\t ----------- " + str(agent.qsa_map[(State(i, j, k), action)][0]) + " | " + str(agent.qsa_map[(State(i, j, k), action)][1])
+						# print str(i) + " | " + str(j) + " | " + str(k) + " | " + action + "\t ----------- " + str(agent.qsa_map[(State(i, j, k), action)][0]) + " | " + '1'
 					else:
 						print str(i) + " | " + str(j) + " | " + str(k) + " | " + action + "\t ----------- Not found ----------------------------------------"
 
@@ -300,8 +332,9 @@ def average_runs (agent_master, agent):
 		# print elem[0], " ", agent.qsa_map[i][0], " ", agent_master.qsa_map[i][0]
 		# break
 
-def plot_qsa (agent):
+def plot_qsa (agent, file_path, figure_title):
 	fig = plt.figure()
+	fig.suptitle(figure_title)
 	for j in [0, 1, 2]:
 		s = "22" + str(j+1)
 		ax = fig.add_subplot(int(s), projection='3d')
@@ -313,23 +346,32 @@ def plot_qsa (agent):
 				Z[k][i] = max(agent.qsa_map[State(X[i], j, Y[k]), "HIT"][0], agent.qsa_map[State(X[i], j, Y[k]), "STICK"][0])
 		X,Y = np.meshgrid(X,Y)
 		ax.plot_wireframe(X,Y,Z, rstride=1, cstride=1)
+		ax.set_xlabel('Player hand value')
+		ax.set_ylabel('Dealer hand value')
+		ax.set_zlabel('q(s,a) value')
+		ax.view_init(45, 260)
 		if (j == 0):
 			ax.set_title("Hand value - No special card")
 		elif (j == 1):
 			ax.set_title("Hand value - Special card (Used at lower value)")
 		elif (j == 2):
 			ax.set_title("Hand value - Special card (Used at higher value)")
-	plt.show()
+	# plt.show()
+	fig = plt.gcf()
+	fig.set_size_inches(19.20,10.80)
+	plt.savefig(file_path,dpi=80)
 
-def plot_avg_reward(ax, reward_avg, interval=1000):
+def plot_avg_reward(ax, reward_avg, interval=1000, linestyle='-', legend='legend', marker=','):
 	y = np.array(reward_avg)
 	n = len(reward_avg)
-	print n
 	x = []
 	for i in xrange(n):
 		x.append(interval*i)
 	x = np.array(x)
-	ax.plot(x, y)
+	line, = ax.plot(x, y, linestyle=linestyle, marker=marker)
+	line.set_label(legend)
+	ax.set_xlabel('Episodes')
+	ax.set_ylabel('Average Reward over previous ' + str(interval) + ' episodes')
 	
 
 ############################################### M O N T E   C A R L O ###########################################
@@ -364,15 +406,23 @@ def monte_carlo_eval (agent, episode, first_visit=True):
 			tup = agent.qsa_map[(state, action)]
 			agent.qsa_map[(state, action)] = ((tup[0] * tup[1] + _return) / (tup[1] + 1) , tup[1] + 1)
 
-# agent = Agent()
-# agent.init_qsa()
-# EPISODES = 100000
-# for ep in xrange(EPISODES):
-# 	episode = agent.play_episode(policy_25=True, control=False, online=False)
-# 	monte_carlo_eval (agent, episode, False)
-# print_qsa(agent)
-# plot_qsa(agent)
-
+EPISODES = 1000
+for visit in [True, False]:
+	sub_folder = 'every_visit'
+	if (visit):
+		sub_folder = 'first_visit'
+	for runs in [1, 10, 100, 1000]:
+		agent_master = Agent()
+		agent_master.init_qsa()
+		for i in xrange(runs):
+			print "Run: ", i
+			agent = Agent()
+			agent.init_qsa()
+			for ep in xrange(EPISODES):
+				episode = agent.play_episode(policy_25=True, control=False, online=False)
+				monte_carlo_eval (agent, episode, visit)
+			average_runs(agent_master, agent)
+		plot_qsa(agent_master, '../graphs/new_graphs/Part1/monte_carlo/' + sub_folder + '/' + str(runs), 'Monte carlo ' + sub_folder + ' averaged over ' + str(runs) + ' runs')
 
 
 ###################################################### T D (N) ##################################################
@@ -380,86 +430,166 @@ def td_eval (agent, episode, n):
 	alpha = 0.1
 	_return = 0.0
 	window_size = 0
+	cum_reward = 0.0
 	for i in xrange(len(episode) - 1, -1, -1):
+		# print "Iter: ", i
+		qs_next = 0.0
 		state = episode[i][0]
 		action = episode[i][1]
 		reward = float(episode[i][2])
-		_return += reward
+		# print "State: ", state
+		cum_reward += reward
+		_return = 0.0
+		# print "\tInitial_reward: ", cum_reward
 		if (window_size == n):
-			_return -= float(episode[i+n][2])
+			cum_reward -= float(episode[i+n][2])
+			# print "\tSubtracted_reward: ", cum_reward
+			# print _return
 			if (episode[i+n][0], episode[i+n][1]) in agent.qsa_map:
-				_return += agent.qsa_map[(episode[i+n][0], episode[i+n][1])][0]
+				qs_next = agent.qsa_map[(episode[i+n][0], episode[i+n][1])][0]
 			else:
 				agent.qsa_map[(episode[i+n][0], episode[i+n][1])] = (0, 0)
+			# print "\tAdded_return_of_next_state: ", qs_next
 		else:
 			window_size += 1
+		_return = cum_reward + qs_next
+		# print"\tFinal return: ", _return
+		# print(_return)
 		tup = agent.qsa_map[(state, action)]
 		agent.qsa_map[(state, action)] = (tup[0] + alpha * (_return - tup[0]), tup[1] + 1)
+		# print "\tUpdated_q_s_a: ", agent.qsa_map[(state, action)]
 
-# for k in [1, 3, 5, 10, 20, 100, 1000]:
-# for k in [20]:
-# 	agent_master = Agent()
-# 	agent_master.init_qsa()
-# 	for i in xrange(100):
-# 		agent = Agent()
-# 		agent.init_qsa()
-# 		EPISODES = 100000
-# 		for ep in xrange(EPISODES):
-# 			episode = agent.play_episode(policy_25=True, control=False, online=False)
-# 			td_eval (agent, episode, k)
-# 		average_runs(agent_master, agent)
-# 	plot_qsa(agent_master)
+EPISODES = 1000
+for k in [1, 3, 5, 10, 20, 100, 1000]:
+	sub_folder = str(k) + '/'
+	for runs in [1, 10, 100, 1000]:
+		agent_master = Agent()
+		agent_master.init_qsa()
+		for i in xrange(runs):
+			print "Run: ", i
+			agent = Agent()
+			agent.init_qsa()
+			for ep in xrange(EPISODES):
+				episode = agent.play_episode(policy_25=True, control=False, online=False)
+				td_eval (agent, episode, k)
+			average_runs(agent_master, agent)
+		plot_qsa(agent_master, '../graphs/new_graphs/Part1/td/' + sub_folder + str(runs), 'TD(' + str(k) + ') averaged over ' + str(runs) + ' runs')
 	
 
-############################################# S A R S A and R E S T #############################################
+############################################# P A R T 2 #############################################################
+
+# color = ['red', 'green', 'blue', 'cyan']
+# marker = ['^', 'o', 'O']
 
 
-# k_arr = [1, 10, 100, 1000]
-# fig = plt.figure()
-# # fig.suptitle("TD(K) Online No Decay")
-# # fig.suptitle("TD(K) Online Decay")
-# fig.suptitle("Q Learning")
-# for i in xrange(1):
-# 	s = "11"
-# 	s += str(i+1)
-# 	ax = fig.add_subplot(int(s))
-# 	agent = Agent()
-# 	EPISODES = 10000
-# 	agent.init_qsa()
-# 	agent.init_policy()
-# 	reward_interval = 1000
-# 	reward_avg = agent.play_episode(policy_25=False, control=True, online=False, td_lambda=False, episodes=EPISODES, decay=True, k=k_arr[i], reward_av_num=reward_interval)
-# 	print reward_avg
-# 	plot_avg_reward(ax, reward_avg, interval=reward_interval)
-# 	# ax.set_title("k = " + str(k_arr[i]))
-# plt.show()
+linestyles = ['--', '-.']
 
+k_arr = [1, 10, 100, 1000]
+for EPISODES in [1000, 10000, 100000]:
+	REWARD_INTERVAL = EPISODES/10
+	fig = plt.figure()
+	fig.suptitle("TD(K) | TD(K) Decay | Q Learning | TD(Lambda) Reward averaged over " + str(REWARD_INTERVAL) + " episodes")
+	ax = fig.add_subplot(111)
+	for k in k_arr:
+		for decay in [True, False]:
+			linestyle = linestyles[0]
+			if(decay):
+				linestyle = linestyles[1]
+			agent = Agent()
+			agent.init_qsa()
+			agent.init_policy()
+			reward_avg = agent.play_episode(policy_25=False, control=True, online=True, td_lambda=False, episodes=EPISODES, decay=decay, k=k, reward_av_num=REWARD_INTERVAL)
+			plot_avg_reward(ax, reward_avg, interval=REWARD_INTERVAL, linestyle=linestyle, legend='TD(' + str(k) + ') with decay=' + str(decay))
 
-
-alpha_arr = [0.1, 0.2, 0.3, 0.4]
-# plt.title("Variation of test reward with alpha TD(2)")
-reward_arr = []
-for i in xrange(1):
-	s = "22"
-	s += str(i+1)
 	agent = Agent()
-	EPISODES = 1000000
 	agent.init_qsa()
 	agent.init_policy()
-	reward_interval = 10000
-	agent.play_episode(policy_25=False, control=True, online=True, td_lambda=False, episodes=EPISODES, decay=False, alpha=alpha_arr[i], k=2, reward_av_num=reward_interval)
-	# reward_avg = agent.test_episode(episodes=10000)
-	# reward_arr.append(reward_avg)
-# plt.plot(alpha_arr, reward_arr)
-# plt.show()
+	reward_avg = agent.play_episode(policy_25=False, control=True, online=False, td_lambda=False, episodes=EPISODES, decay=False, k=1, reward_av_num=REWARD_INTERVAL)
+	plot_avg_reward(ax, reward_avg, interval=REWARD_INTERVAL, linestyle='-', legend='Q Learning', marker='o')
+
+	agent = Agent()
+	agent.init_qsa()
+	agent.init_policy()
+	reward_avg = agent.play_episode(policy_25=False, control=True, online=False, td_lambda=True, episodes=EPISODES, decay=False, k=1, reward_av_num=REWARD_INTERVAL)
+	plot_avg_reward(ax, reward_avg, interval=REWARD_INTERVAL, linestyle='-', legend='TD(Lambda)', marker='^')
+
+	ax.legend()
+	fig = plt.gcf()
+	fig.set_size_inches(19.20,10.80)
+	plt.savefig('../graphs/new_graphs/Part2/' + str(REWARD_INTERVAL),dpi=80)
 
 
-# agent = Agent()
+######################################################## P A R T 3 ################################################################
+
+linestyles = ['--', '-.']
+
+EPISODES = 100000
+fig = plt.figure()
+fig.suptitle("TD(K) | TD(K) Decay | Q Learning | TD(Lambda) Average reward after training for " + str(EPISODES) + " episodes")
+ax = fig.add_subplot(111)
+
+alpha_arr = [0.1, 0.2, 0.3, 0.4]
+
+k_arr = [1, 10, 100, 1000]
+for k in k_arr:
+	for decay in [True, False]:
+		linestyle = linestyles[0]
+		if(decay):
+			linestyle = linestyles[1]
+		reward_arr = []
+		for alpha in alpha_arr:
+			agent = Agent()
+			agent.init_qsa()
+			agent.init_policy()
+			agent.play_episode(policy_25=False, control=True, online=True, td_lambda=False, episodes=EPISODES, decay=decay, alpha=alpha, k=k)
+			reward_avg = agent.test_episode(episodes=100)
+			reward_arr.append(reward_avg)
+		line, = ax.plot(alpha_arr, reward_arr, linestyle=linestyle)
+		line.set_label('TD(' + str(k) + ') with decay=' + str(decay))
+
+reward_arr = []
+for alpha in alpha_arr:
+	agent = Agent()
+	agent.init_qsa()
+	agent.init_policy()
+	agent.play_episode(policy_25=False, control=True, online=False, td_lambda=False, episodes=EPISODES, decay=False, alpha=alpha, k=1)
+	reward_avg = agent.test_episode(episodes=100)
+	reward_arr.append(reward_avg)
+line, = ax.plot(alpha_arr, reward_arr, linestyle='-', marker='o')
+line.set_label('Q Learning')
+
+reward_arr = []
+for alpha in alpha_arr:
+	agent = Agent()
+	agent.init_qsa()
+	agent.init_policy()
+	agent.play_episode(policy_25=False, control=True, online=False, td_lambda=True, episodes=EPISODES, decay=False, alpha=alpha, k=1)
+	reward_avg = agent.test_episode(episodes=100)
+	reward_arr.append(reward_avg)
+line, = ax.plot(alpha_arr, reward_arr, linestyle='-', marker='^')
+line.set_label('TD(Lambda)')
+
+ax.legend()
+ax.set_xlabel('Learning Rate')
+ax.set_ylabel('Average reward over 100 test runs after training')
+fig = plt.gcf()
+fig.set_size_inches(19.20,10.80)
+plt.savefig('../graphs/new_graphs/Part3/' + str(100),dpi=80)
+
+
+##################################################### P A R T 4 ###########################################################
+
+
+EPISODES = 1000000
+agent = Agent()
+agent.init_qsa()
+agent.init_policy()
+agent.play_episode(policy_25=False, control=True, online=False, td_lambda=False, episodes=EPISODES, decay=False, alpha=0.1, k=1)
+
 agent.init_qsa()
 EPISODES = 1000000
 agent.policy[State(-1, -1, -1)] = "DEAL"
 for ep in xrange(EPISODES):
 	episode = agent.play_episode(policy_25=False, control=False, online=False)
 	monte_carlo_eval (agent, episode, False)
-print_qsa(agent)
-plot_qsa(agent)
+plot_qsa(agent, '../graphs/new_graphs/Part4/eval', 'TD(Lambda) trained for 1 Million episodes')
