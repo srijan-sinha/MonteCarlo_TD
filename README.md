@@ -1,4 +1,4 @@
-# MonteDifference
+# MonteCarlo_TD
 A lot of Monte Carlo and Temporal Difference Algorithm.  
 The problem statement is as mentioned in [Assignment1.pdf](./Assignment1.pdf)  
 To run the code simply execute:  
