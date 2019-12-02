@@ -357,6 +357,7 @@ def monte_carlo_eval (agent, episode, first_visit=True):
 			agent.qsa_map[(state, action)] = ((tup[0] * tup[1] + _return) / (tup[1] + 1) , tup[1] + 1)
 
 if (monte_carlo_eval):
+	print "Running MC evaluation of policy 25"
 	EPISODES = 1000
 	for visit in [True, False]:
 		sub_folder = 'every_visit'
@@ -366,7 +367,6 @@ if (monte_carlo_eval):
 			agent_master = Agent()
 			agent_master.init_qsa()
 			for i in xrange(runs):
-				print "Run: ", i
 				agent = Agent()
 				agent.init_qsa()
 				for ep in xrange(EPISODES):
@@ -402,6 +402,7 @@ def td_eval (agent, episode, n):
 		agent.qsa_map[(state, action)] = (tup[0] + alpha * (_return - tup[0]), tup[1] + 1)
 
 if(td_eval):
+	print "Running TD evaluation of policy 25"
 	EPISODES = 1000
 	for k in [1, 3, 5, 10, 20, 100, 1000]:
 		sub_folder = str(k) + '/'
@@ -409,7 +410,6 @@ if(td_eval):
 			agent_master = Agent()
 			agent_master.init_qsa()
 			for i in xrange(runs):
-				print "Run: ", i
 				agent = Agent()
 				agent.init_qsa()
 				for ep in xrange(EPISODES):
@@ -428,12 +428,15 @@ if(td_eval):
 linestyles = ['--', '-.']
 
 if (avg_training_reward):
+	print "Running Training reward vs Epochs experiment"
 	k_arr = [1, 10, 100, 1000]
 	for EPISODES in [1000, 10000, 100000]:
 		REWARD_INTERVAL = EPISODES/10
 		fig = plt.figure()
 		fig.suptitle("TD(K) | TD(K) Decay | Q Learning | TD(Lambda) Reward averaged over " + str(REWARD_INTERVAL) + " episodes")
 		ax = fig.add_subplot(111)
+
+		print "Executing SARSA(k) for ", EPISODES, " episodes"
 		for k in k_arr:
 			for decay in [True, False]:
 				linestyle = linestyles[0]
@@ -445,12 +448,14 @@ if (avg_training_reward):
 				reward_avg = agent.play_episode(policy_25=False, control=True, online=True, td_lambda=False, episodes=EPISODES, decay=decay, k=k, reward_av_num=REWARD_INTERVAL)
 				plot_avg_reward(ax, reward_avg, interval=REWARD_INTERVAL, linestyle=linestyle, legend='TD(' + str(k) + ') with decay=' + str(decay))
 
+		print "Executing Q-Learning for ", EPISODES, " episodes"
 		agent = Agent()
 		agent.init_qsa()
 		agent.init_policy()
 		reward_avg = agent.play_episode(policy_25=False, control=True, online=False, td_lambda=False, episodes=EPISODES, decay=False, k=1, reward_av_num=REWARD_INTERVAL)
 		plot_avg_reward(ax, reward_avg, interval=REWARD_INTERVAL, linestyle='-', legend='Q Learning', marker='o')
 
+		print "Executing TD Lambda for ", EPISODES, " episodes"
 		agent = Agent()
 		agent.init_qsa()
 		agent.init_policy()
@@ -469,12 +474,14 @@ linestyles = ['--', '-.']
 
 if (avg_test_reward):
 	EPISODES = 100000
+	print "Running Test reward vs Alpha experiment for ", EPISODES, " episodes"
 	fig = plt.figure()
 	fig.suptitle("TD(K) | TD(K) Decay | Q Learning | TD(Lambda) Average reward after training for " + str(EPISODES) + " episodes")
 	ax = fig.add_subplot(111)
 
 	alpha_arr = [0.1, 0.2, 0.3, 0.4]
 
+	print "Executing SARSA-k"
 	k_arr = [1, 10, 100, 1000]
 	for k in k_arr:
 		for decay in [True, False]:
@@ -492,6 +499,7 @@ if (avg_test_reward):
 			line, = ax.plot(alpha_arr, reward_arr, linestyle=linestyle)
 			line.set_label('TD(' + str(k) + ') with decay=' + str(decay))
 
+	print "Executing Q-Learning"
 	reward_arr = []
 	for alpha in alpha_arr:
 		agent = Agent()
@@ -503,6 +511,7 @@ if (avg_test_reward):
 	line, = ax.plot(alpha_arr, reward_arr, linestyle='-', marker='o')
 	line.set_label('Q Learning')
 
+	print "Executing TD Lambda"
 	reward_arr = []
 	for alpha in alpha_arr:
 		agent = Agent()
@@ -519,18 +528,20 @@ if (avg_test_reward):
 	ax.set_ylabel('Average reward over 100 test runs after training')
 	fig = plt.gcf()
 	fig.set_size_inches(19.20,10.80)
-	plt.savefig('./graphs/Part3/' + str(100),dpi=80)
+	# plt.savefig('./graphs/Part3/' + str(100),dpi=80)
 
 
 ##################################################### P A R T 4 ###########################################################
 
 if (lambda_policy):
 	EPISODES = 1000000
+	print ("Training TD Lambda for ", EPISODES, " episodes")
 	agent = Agent()
 	agent.init_qsa()
 	agent.init_policy()
 	agent.play_episode(policy_25=False, control=True, online=False, td_lambda=False, episodes=EPISODES, decay=False, alpha=0.1, k=1)
 
+	print ("Evaluating trained algorithm using Monte Carlo")
 	agent.init_qsa()
 	EPISODES = 1000000
 	agent.policy[State(-1, -1, -1)] = "DEAL"
